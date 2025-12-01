@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Term Project - Projection Cubes (Three.js)</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+    }
+    #glCanvas {
+      border: 1px solid #444;
+      margin-top: 12px;
+      display: block;
+    }
+    #ui {
+      position: relative;
+      margin-top: 8px;
+      text-align: center;
+      line-height: 1.4;
+      font-size: 14px;
+      white-space: pre-line;
+    }
+    .highlight {
+      font-weight: bold;
+      color: #8cf;
+    }
+  </style>
+</head>
+<body>
+  <h2>Term Project - Projection Cubes (Three.js)</h2>
+  <canvas id="glCanvas" width="700" height="700"></canvas>
+  <div id="ui">
+    <div id="projectionText" class="highlight">projection: PERSPECTIVE</div>
+    <div>q: switch projection (Perspective / Orthographic)</div>
+    <div>space: jump</div>
+    <div>r : reset</div>
+  </div>
+  <script type="module" src="termproject.js"></script>
+</body>
+</html>
