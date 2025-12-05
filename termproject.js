@@ -12,9 +12,6 @@ renderer.setClearColor(new THREE.Color(0.1, 0.2, 0.3));
 
 const scene = new THREE.Scene();
 
-// =====================
-// 카메라 / 투영 설정
-// =====================
 const aspect = canvas.width / canvas.height;
 const baseY = 2;
 const baseZ = 5;
@@ -22,9 +19,6 @@ const size = 3.0;
 
 let isGameOver = false;
 
-// =====================
-// PERS 모드 타이머 & 기둥 관련
-// =====================
 let perspElapsed = 0;          // PERS 모드에서 경과 시간(초)
 let columnSpawnTimer = 0;      // 마지막 기둥 생성 후 경과 시간(초)
 
@@ -58,15 +52,10 @@ function updateProjectionText() {
 }
 updateProjectionText();
 
-// =====================
-// 좌표축 Helper
-// =====================
 const axesHelper = new THREE.AxesHelper(2.2);
 scene.add(axesHelper);
 
-// =====================
-// 발판(큐브) 배치
-// =====================
+// 발판 배치
 const positions = [
   {x: 4,  y: 0,  z: 0 },
   {x: 5,  y: 0,  z: 0 },
@@ -113,14 +102,9 @@ for (let pos of positions) {
   scene.add(cube);
 }
 const firstCube = cubes[0];
-// 발판(큐브) 크기 관련 상수
 const cubeSize = 1.0;
 const cubeHalfSize = cubeSize / 2;   // = 0.5
 
-
-// =====================
-// 조명
-// =====================
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
 dirLight.position.set(5, 10, 7);
 scene.add(dirLight);
@@ -128,48 +112,30 @@ scene.add(dirLight);
 const ambient = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambient);
 
-// =====================
+
 // 플레이어(큐브)
-// =====================
-
-// 발판(플랫폼) 큐브는 이미 위에서 사용 중
-// const cubeHalfSize = 0.5;  // 이건 그대로 유지하면 됨
-
-// 플레이어 큐브 한 변 길이
 const playerSize = 0.6;
 const playerHalfSize = playerSize / 2;
 
-// 플레이어 메쉬를 큐브로 생성
 const playerGeo = new THREE.BoxGeometry(playerSize, playerSize, playerSize);
 const playerMat = new THREE.MeshPhongMaterial({ color: 0xffee88 });
 const player = new THREE.Mesh(playerGeo, playerMat);
 scene.add(player);
 
-// 플레이어 / 발판 크기 관련 상수
-// (아래 radius 값은 충돌 계산에서 사용됨)
 const playerRadiusX = playerHalfSize;
 const playerRadiusY = playerHalfSize;
 const playerRadiusZ = playerHalfSize;
 
+const moveSpeed = 0.20;
+let scrollX = 0;
 
-// =====================
-// 카메라/플레이어 위치 상태
-// =====================
-const moveSpeed = 0.20;   // ← → 이동 속도(첫 코드의 velocity.x 느낌)
-let scrollX = 0;          // 카메라/플레이어의 x 기준(방향키로 움직임)
-
-// 플레이어의 z (깊이)
-// - PERSPECTIVE에서는 z를 거의 고정(발판에 따라 조금 바뀔 수 있음)
-// - ORTHOGRAPHIC에서는 발판에 착지하면 해당 발판 z로 스냅
 let playerZ = firstCube.position.z;
 let lastTouchedCubeZ = playerZ;
 let lastTouchedCubeX = firstCube.position.x;
 
-// 첫 시작 시 scrollX 초기화
 const playerOffsetX = 0;
 scrollX = firstCube.position.x - playerOffsetX;
 
-// 카메라 위치를 scrollX 기준으로 설정
 function updateCameraPositions() {
   currentCamera.position.set(scrollX, baseY, baseZ);
   currentCamera.lookAt(scrollX, 0, 0);
@@ -190,18 +156,13 @@ function placePlayerOnFirstCube() {
 }
 placePlayerOnFirstCube();
 
-// =====================
-// 물리(점프, 중력)
-// =====================
 let playerVelY = 0;
 const gravity = -0.015;
 const jumpPower = 0.23;
 let isOnGround = true;
 
-// 전역 바닥 높이 (발판 없는 곳으로 떨어질 때 기준)
 const worldFloorY = -10;
 
-// x, z 위치에서 "아래에 있는 발판 중에서 가장 높은 곳"을 찾아주는 함수
 function getGroundInfoAt(x, z) {
   let bestGroundY = -Infinity;
   let hitCubeZ = null;
@@ -238,7 +199,6 @@ function getGroundInfoAt(x, z) {
 }
 
 function checkCubeCollision(x, y, z) {
-  // 플레이어의 AABB (축 정렬 바운딩 박스)
   const halfX = playerRadiusX;
   const halfY = playerRadiusY;
   const halfZ = playerRadiusZ;
@@ -255,47 +215,32 @@ function checkCubeCollision(x, y, z) {
       new THREE.Vector3(cubeHalfSize * 2, cubeHalfSize * 2, cubeHalfSize * 2)
     );
 
-    // 아예 겹치지 않으면 패스
     if (!playerBox.intersectsBox(cubeBox)) continue;
-
-    // 여기까지 왔으면 실제로 두 박스가 겹친 상태
 
     const cubeTop = cube.position.y + cubeHalfSize;
     const playerBottom = y - halfY;
-    const landingTolerance = 0.05;   // 착지 허용 오차
+    const landingTolerance = 0.05;
 
-    // 1) "위에서 살짝 닿은 착지"는 살려주기
-    //    - 플레이어 바닥이 큐브 윗면 근처이고
-    //    - 아래로 떨어지는 중(velocity <= 0)일 때
     if (
       playerBottom >= cubeTop - landingTolerance &&
       playerBottom <= cubeTop + landingTolerance &&
       playerVelY <= 0
     ) {
-      // 이건 정상 착지 상황 → Game Over 아님
       continue;
     }
 
-    // 2) 그 외의 모든 교차는
-    //    → 옆면/밑에서 박은 것 → Game Over
     return true;
   }
 
   return false;
 }
 
-// =====================
-// 기둥과 플레이어 충돌 체크
-// =====================
-// =====================
-// 기둥과 플레이어 충돌 체크 (PERS: 3D, ORTHO: 2D처럼 z무시)
-// =====================
 function checkColumnCollision(px, py, pz, column) {
-  const hitPadding = 0.1;  // 살짝 여유
+  const hitPadding = 0.1;
 
   const colPos = column.mesh.position;
 
-  // ORTHO 모드: 2D처럼 z는 완전히 무시하고 x,y만 본다
+  // ORTHO 모드: z는 완전히 무시하고 x,y만 본다
   if (projectionMode === 'ORTHOGRAPHIC') {
     const dx = Math.abs(px - colPos.x);
     const dy = Math.abs(py - colPos.y);
@@ -306,7 +251,6 @@ function checkColumnCollision(px, py, pz, column) {
     return hitX && hitY;
   }
 
-  // PERSPECTIVE 모드: 기존처럼 3D 박스 충돌 (x,y,z 모두 사용)
   const playerBox = new THREE.Box3(
     new THREE.Vector3(
       px - (playerRadiusX + hitPadding),
@@ -341,32 +285,27 @@ function checkColumnCollision(px, py, pz, column) {
 function spawnFallingColumn() {
   if (cubes.length === 0) return;
 
-  // 1) 랜덤 큐브 하나 골라서 z좌표만 가져오기
   const randIndex = Math.floor(Math.random() * cubes.length);
   const baseCube = cubes[randIndex];
   const targetZ = baseCube.position.z;
 
-  // 2) 현재 화면에 보이는 범위 안에서 X 좌표 랜덤
   let leftX, rightX;
 
   if (projectionMode === 'ORTHOGRAPHIC') {
-    // Ortho에서 실제 화면 폭 계산 (size, aspect 기반)
     const w = canvas.clientWidth || canvas.width;
     const h = canvas.clientHeight || canvas.height;
     const aspectNow = w / h;
-    const halfWidth = size * aspectNow;   // orthoCamera.left/right에서 쓰던 값과 동일
+    const halfWidth = size * aspectNow;
 
     leftX  = scrollX - halfWidth;
     rightX = scrollX + halfWidth;
   } else {
-    // Pers에서는 대략 카메라 중심 기준 ±3 정도만 보인다고 보고 사용
     leftX  = scrollX - 3.0;
     rightX = scrollX + 3.0;
   }
 
   const randomX = leftX + Math.random() * (rightX - leftX);
 
-  // 3) 기둥 크기 (얇고 짧게)
   const columnHeight = 2.0;
   const columnHalfX  = 0.25;
   const columnHalfZ  = 0.25;
@@ -380,18 +319,16 @@ function spawnFallingColumn() {
   const columnMat = new THREE.MeshPhongMaterial({ color: 0xaa2222 });
   const column = new THREE.Mesh(columnGeo, columnMat);
 
-  // 4) y는 충분히 높은 곳에서 시작 (선택한 큐브 위 + 여유)
   const startY = baseCube.position.y + cubeHalfSize + columnHeight + 8;
 
   column.position.set(
-    randomX,   // 화면 안에서 랜덤 X
-    startY,    // 위에서 떨어지게
-    targetZ    // 선택한 큐브의 z 레일
+    randomX,
+    startY,
+    targetZ
   );
 
   scene.add(column);
 
-  // 5) 나중에 떨어뜨리고 충돌 체크하기 위해 배열에 저장
   fallingColumns.push({
     mesh: column,
     halfX: columnHalfX,
@@ -410,9 +347,6 @@ function setGameOver() {
   console.log('Game Over - o: restart');
 }
 
-// =====================
-// 투영 전환
-// =====================
 function switchToPerspective() {
   projectionMode = 'PERSPECTIVE';
   currentCamera = perspCamera;
@@ -444,9 +378,6 @@ function toggleProjection() {
   }
 }
 
-// =====================
-// 리셋
-// =====================
 function resetScene() {
   isGameOver = false;
   keys.left = false;
@@ -454,7 +385,6 @@ function resetScene() {
 
   scrollX = firstCube.position.x - playerOffsetX;
 
-  // 발판 위치 초기화
   for (let i = 0; i < cubes.length; i++) {
     cubes[i].position.set(
       initialPositions[i].x,
@@ -466,15 +396,12 @@ function resetScene() {
   playerVelY = 0;
   isOnGround = true;
 
-  // ======================
-  // ★ 기둥 전체 삭제
-  // ======================
+  // 게임 오버 -> 기둥 전체 삭제
   for (let i = fallingColumns.length - 1; i >= 0; i--) {
-    scene.remove(fallingColumns[i].mesh); // 씬에서 제거
+    scene.remove(fallingColumns[i].mesh);
   }
-  fallingColumns.length = 0;  // 배열 비우기
+  fallingColumns.length = 0;
 
-  // 타이머 리셋
   perspElapsed = 0;
   columnSpawnTimer = 0;
   lastTime = performance.now();
@@ -484,10 +411,6 @@ function resetScene() {
   placePlayerOnFirstCube();
 }
 
-
-// =====================
-// 점프
-// =====================
 function tryJump() {
   if (isGameOver) return;
   if (isOnGround) {
@@ -496,9 +419,6 @@ function tryJump() {
   }
 }
 
-// =====================
-// 키 입력 처리
-// =====================
 const keys = {
   left: false,
   right: false
@@ -534,9 +454,6 @@ document.addEventListener('keyup', (event) => {
   }
 });
 
-// =====================
-// 메인 루프
-// =====================
 function animate() {
   requestAnimationFrame(animate);
 
@@ -555,7 +472,6 @@ function animate() {
       }
     }
   } else {
-    // ORTHO로 바꾸면 연속 시간 끊김
     perspElapsed = 0;
     columnSpawnTimer = 0;
   }
@@ -565,7 +481,6 @@ function animate() {
     return;
   }
 
-  // 1. X 방향 이동 (카메라 + 플레이어 같이 이동)
   let nextScrollX = scrollX;
   if (keys.left) {
     nextScrollX -= moveSpeed;
@@ -592,18 +507,14 @@ function animate() {
 
   const nextPlayerX = nextScrollX + playerOffsetX;
 
-  // 2. Y 방향(중력, 점프)
   playerVelY += gravity;
   let nextPlayerY = player.position.y + playerVelY;
 
-  // 현재 z 는 playerZ로 관리
   let nextPlayerZ = playerZ;
 
-  // 3. 발판 충돌(착지) 처리
   const { groundY, hitCubeZ, hitCubeX } = getGroundInfoAt(nextPlayerX, nextPlayerZ);
 
   if (groundY !== -Infinity && nextPlayerY <= groundY) {
-    // 발판 또는 바닥에 착지
     nextPlayerY = groundY;
     playerVelY = 0;
     isOnGround = true;
@@ -613,8 +524,6 @@ function animate() {
       if (hitCubeX != null) {
         lastTouchedCubeX = hitCubeX;
       }
-
-      // ORTHOGRAPHIC 모드에서는 발판의 깊이로 z 고정
       if (projectionMode === 'ORTHOGRAPHIC') {
         playerZ = hitCubeZ;
         nextPlayerZ = playerZ;
@@ -628,23 +537,19 @@ function animate() {
     setGameOver();
   }
 
-  // 4. 위치 확정
   scrollX = nextScrollX;
   player.position.x = scrollX + playerOffsetX;
   player.position.y = nextPlayerY;
   player.position.z = nextPlayerZ;
 
-  // 5. 낙사 처리(바닥 아래로 너무 떨어지면 리셋)
   if (nextPlayerY < worldFloorY) {
     setGameOver();
   }
 
-    // 3) 기둥 떨어뜨리기 + 기둥과 플레이어 충돌
   for (let i = fallingColumns.length - 1; i >= 0; i--) {
     const col = fallingColumns[i];
 
-    // 기둥 y축으로 떨어뜨리기
-    col.mesh.position.y -= COLUMN_FALL_SPEED;   // dt 곱해도 됨
+    col.mesh.position.y -= COLUMN_FALL_SPEED;
 
     // 플레이어와 충돌 체크
     if (checkColumnCollision(
@@ -663,18 +568,12 @@ function animate() {
     }
   }
 
-
-  // 6. 카메라 위치 갱신
   updateCameraPositions();
 
-  // 7. 렌더링
   renderer.render(scene, currentCamera);
 }
 animate();
 
-// =====================
-// 리사이즈 대응
-// =====================
 window.addEventListener('resize', () => {
   const width = canvas.clientWidth || 700;
   const height = canvas.clientHeight || 700;
